@@ -1,0 +1,70 @@
+name: Printer from issue
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: printer-issue-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  pull-request:
+    if: github.event.issue.state == 'open' && contains(github.event.issue.labels.*.name, 'new-printer')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # The issue body is untrusted input, so it's passed in through env,
+      # never pasted into the shell command.
+      - name: Read the issue and update data/printers.json
+        id: parse
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+        run: node scripts/add-printer-from-issue.mjs
+
+      - name: Open or update the pull request
+        id: cpr
+        if: steps.parse.outputs.ok == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: printer/issue-${{ github.event.issue.number }}
+          base: ${{ github.event.repository.default_branch }}
+          title: ${{ steps.parse.outputs.title }}
+          commit-message: ${{ steps.parse.outputs.title }}
+          body-path: ${{ runner.temp }}/pr-body.md
+          add-paths: |
+            data/printers.json
+            images
+          labels: new-printer
+          delete-branch: true
+
+      - name: Link the pull request on the issue
+        if: steps.parse.outputs.ok == 'true' && steps.cpr.outputs.pull-request-operation == 'created'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body "Thanks! I opened $PR_URL for this printer. It shows up on the site once it's merged. Editing this issue updates the pull request."
+
+      - name: Explain what needs fixing
+        if: steps.parse.outputs.ok != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/issue-comment.md"
+          exit 1
