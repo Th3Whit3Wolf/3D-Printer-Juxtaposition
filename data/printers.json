@@ -268,5 +268,33 @@
     ],
     "added": "2026-09-27",
     "source_issue": 3
+  },
+  {
+    "id": "sovol-sv08-max",
+    "brand": "Sovol",
+    "model": "SV08 MAX",
+    "price": 1099,
+    "price_updated": "2026-09-27",
+    "technology": "FDM",
+    "enclosed": false,
+    "multi_material": false,
+    "build_volume": {
+      "x": 500,
+      "y": 500,
+      "z": 500
+    },
+    "image": "images/sovol-sv08-max.jpg",
+    "links": [
+      {
+        "label": "Official Store",
+        "url": "https://www.sovol3d.com/products/sovol-sv08-max-3d-printer"
+      },
+      {
+        "label": "Amazon",
+        "url": "https://amazon.com/dp/B0FK9NR69S"
+      }
+    ],
+    "added": "2026-09-27",
+    "source_issue": 5
   }
 ]
