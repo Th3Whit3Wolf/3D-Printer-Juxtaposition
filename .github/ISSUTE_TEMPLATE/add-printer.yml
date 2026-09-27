@@ -1,0 +1,99 @@
+name: Add or update a 3D printer
+description: Suggest a printer for the comparison site. A pull request is created from this form automatically.
+title: "Printer: "
+labels:
+  - new-printer
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in what you know. When you submit, a bot turns this issue into a pull request.
+        If something needs fixing, the bot comments here — edit the issue and it tries again.
+        Submitting a printer that's already listed (same brand and model) updates it instead.
+
+  - type: input
+    id: brand
+    attributes:
+      label: Brand
+      placeholder: Bambu Lab
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      placeholder: P1S
+    validations:
+      required: true
+
+  - type: input
+    id: price
+    attributes:
+      label: Price (USD)
+      description: Current price in US dollars. Numbers only.
+      placeholder: "699"
+    validations:
+      required: true
+
+  - type: input
+    id: build-x
+    attributes:
+      label: Build volume X (mm)
+      placeholder: "256"
+    validations:
+      required: true
+
+  - type: input
+    id: build-y
+    attributes:
+      label: Build volume Y (mm)
+      placeholder: "256"
+    validations:
+      required: true
+
+  - type: input
+    id: build-z
+    attributes:
+      label: Build volume Z (mm)
+      placeholder: "256"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: technology
+    attributes:
+      label: Technology
+      options:
+        - FDM
+        - Resin (MSLA)
+        - SLS
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: features
+    attributes:
+      label: Features
+      options:
+        - label: Enclosed build chamber
+        - label: Multi-material or multi-color printing
+
+  - type: textarea
+    id: image
+    attributes:
+      label: Product image
+      description: Paste a direct link to an image, or drag an image file into this box. It gets copied into the repository.
+
+  - type: textarea
+    id: links
+    attributes:
+      label: Where to buy
+      description: |
+        One link per line. Put a label before a `|` if you like; otherwise one is made from the web address.
+      placeholder: |
+        Official store | https://example.com/printer
+        Amazon | https://www.amazon.com/dp/XXXXXXXXXX
+    validations:
+      required: true
