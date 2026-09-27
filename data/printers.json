@@ -1,0 +1,150 @@
+[
+  {
+    "id": "anycubic-kobra-3-combo",
+    "brand": "Anycubic",
+    "model": "Kobra 3 Combo",
+    "price": 449,
+    "technology": "FDM",
+    "enclosed": false,
+    "multi_material": true,
+    "build_volume": { "x": 250, "y": 250, "z": 260 },
+    "links": [
+      { "label": "Official site", "url": "https://www.anycubic.com" },
+      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Anycubic+Kobra+3+Combo" }
+    ],
+    "added": "2026-09-01"
+  },
+  {
+    "id": "bambu-lab-a1",
+    "brand": "Bambu Lab",
+    "model": "A1",
+    "price": 399,
+    "technology": "FDM",
+    "enclosed": false,
+    "multi_material": false,
+    "build_volume": { "x": 256, "y": 256, "z": 256 },
+    "links": [
+      { "label": "Official site", "url": "https://bambulab.com" },
+      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Bambu+Lab+A1" }
+    ],
+    "added": "2026-09-01"
+  },
+  {
+    "id": "bambu-lab-a1-mini",
+    "brand": "Bambu Lab",
+    "model": "A1 mini",
+    "price": 249,
+    "technology": "FDM",
+    "enclosed": false,
+    "multi_material": false,
+    "build_volume": { "x": 180, "y": 180, "z": 180 },
+    "links": [
+      { "label": "Official site", "url": "https://bambulab.com" },
+      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Bambu+Lab+A1+mini" }
+    ],
+    "added": "2026-09-01"
+  },
+  {
+    "id": "bambu-lab-p1s",
+    "brand": "Bambu Lab",
+    "model": "P1S",
+    "price": 649,
+    "technology": "FDM",
+    "enclosed": true,
+    "multi_material": false,
+    "build_volume": { "x": 256, "y": 256, "z": 256 },
+    "links": [
+      { "label": "Official site", "url": "https://bambulab.com" },
+      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Bambu+Lab+P1S" }
+    ],
+    "added": "2026-09-01"
+  },
+  {
+    "id": "creality-ender-3-v3-se",
+    "brand": "Creality",
+    "model": "Ender-3 V3 SE",
+    "price": 199,
+    "technology": "FDM",
+    "enclosed": false,
+    "multi_material": false,
+    "build_volume": { "x": 220, "y": 220, "z": 250 },
+    "links": [
+      { "label": "Official site", "url": "https://www.creality.com" },
+      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Creality+Ender-3+V3+SE" }
+    ],
+    "added": "2026-09-01"
+  },
+  {
+    "id": "creality-k1c",
+    "brand": "Creality",
+    "model": "K1C",
+    "price": 459,
+    "technology": "FDM",
+    "enclosed": true,
+    "multi_material": false,
+    "build_volume": { "x": 220, "y": 220, "z": 250 },
+    "links": [
+      { "label": "Official site", "url": "https://www.creality.com" },
+      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Creality+K1C" }
+    ],
+    "added": "2026-09-01"
+  },
+  {
+    "id": "elegoo-neptune-4-pro",
+    "brand": "Elegoo",
+    "model": "Neptune 4 Pro",
+    "price": 299,
+    "technology": "FDM",
+    "enclosed": false,
+    "multi_material": false,
+    "build_volume": { "x": 225, "y": 225, "z": 265 },
+    "links": [
+      { "label": "Official site", "url": "https://www.elegoo.com" },
+      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Elegoo+Neptune+4+Pro" }
+    ],
+    "added": "2026-09-01"
+  },
+  {
+    "id": "elegoo-saturn-4-ultra",
+    "brand": "Elegoo",
+    "model": "Saturn 4 Ultra",
+    "price": 449,
+    "technology": "Resin (MSLA)",
+    "enclosed": true,
+    "multi_material": false,
+    "build_volume": { "x": 218.88, "y": 122.88, "z": 220 },
+    "links": [
+      { "label": "Official site", "url": "https://www.elegoo.com" },
+      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Elegoo+Saturn+4+Ultra" }
+    ],
+    "added": "2026-09-01"
+  },
+  {
+    "id": "prusa-research-core-one",
+    "brand": "Prusa Research",
+    "model": "Core One",
+    "price": 1199,
+    "technology": "FDM",
+    "enclosed": true,
+    "multi_material": false,
+    "build_volume": { "x": 250, "y": 220, "z": 270 },
+    "links": [
+      { "label": "Official site", "url": "https://www.prusa3d.com" }
+    ],
+    "added": "2026-09-01"
+  },
+  {
+    "id": "prusa-research-mk4s",
+    "brand": "Prusa Research",
+    "model": "MK4S",
+    "price": 1099,
+    "technology": "FDM",
+    "enclosed": false,
+    "multi_material": false,
+    "build_volume": { "x": 250, "y": 210, "z": 220 },
+    "links": [
+      { "label": "Official site", "url": "https://www.prusa3d.com" }
+    ],
+    "added": "2026-09-01"
+  }
+]

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Compare 3D printers</title>
+  <meta name="description" content="Filter, sort and compare 3D printers by price, build volume and the largest cube they can print.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3l12 7v12l-12 7-12-7V10z' fill='%23D69E16'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <h1>Compare 3D printers</h1>
+      <p class="lede">Filter by price and size, see the largest cube each printer can make in one piece, and put up to four side by side.</p>
+      <p class="masthead-actions">
+        <a id="suggest-link" class="button button-quiet" hidden>Suggest a printer</a>
+      </p>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="filters" aria-label="Filters">
+      <details id="filter-panel" open>
+        <summary>Filters</summary>
+        <form id="filter-form" autocomplete="off">
+          <label class="field">
+            <span>Search</span>
+            <input type="search" name="q" placeholder="Brand or model">
+          </label>
+
+          <fieldset class="field">
+            <legend>Price (USD)</legend>
+            <div class="range-pair">
+              <input type="number" name="priceMin" min="0" step="10" placeholder="Min" aria-label="Minimum price">
+              <span aria-hidden="true">to</span>
+              <input type="number" name="priceMax" min="0" step="10" placeholder="Max" aria-label="Maximum price">
+            </div>
+          </fieldset>
+
+          <label class="field">
+            <span>Largest cube at least <output id="min-side-out">any size</output></span>
+            <input type="range" name="minSide" id="min-side" min="0" max="300" step="10" value="0">
+          </label>
+
+          <fieldset class="field">
+            <legend>Enclosure</legend>
+            <label class="check"><input type="radio" name="enclosure" value="any" checked> Any</label>
+            <label class="check"><input type="radio" name="enclosure" value="yes"> Enclosed</label>
+            <label class="check"><input type="radio" name="enclosure" value="no"> Open frame</label>
+          </fieldset>
+
+          <fieldset class="field">
+            <legend>Features</legend>
+            <label class="check"><input type="checkbox" name="multi"> Multi-material</label>
+          </fieldset>
+
+          <fieldset class="field" id="tech-options">
+            <legend>Technology</legend>
+          </fieldset>
+
+          <fieldset class="field" id="brand-options">
+            <legend>Brand</legend>
+          </fieldset>
+
+          <button type="reset" class="button button-quiet">Clear filters</button>
+        </form>
+      </details>
+    </aside>
+
+    <main>
+      <div class="toolbar">
+        <p id="count" class="count" aria-live="polite"></p>
+        <div class="legend" aria-hidden="true">
+          <span class="swatch swatch-vol"></span> Build volume
+          <span class="swatch swatch-cube"></span> Largest cube
+        </div>
+        <label class="sort">
+          <span>Sort by</span>
+          <select id="sort">
+            <option value="price-asc">Price, low to high</option>
+            <option value="price-desc">Price, high to low</option>
+            <option value="volume-desc">Build volume, largest first</option>
+            <option value="cube-desc">Largest cube, biggest first</option>
+            <option value="ppl-asc">Price per litre, lowest first</option>
+            <option value="name-asc">Name, A to Z</option>
+            <option value="added-desc">Recently added</option>
+          </select>
+        </label>
+      </div>
+      <div id="grid" class="grid"></div>
+    </main>
+  </div>
+
+  <div id="tray" class="tray" hidden>
+    <div class="tray-inner">
+      <ul id="tray-list" class="tray-list"></ul>
+      <div class="tray-actions">
+        <button type="button" id="tray-clear" class="button button-on-dark">Clear</button>
+        <button type="button" id="tray-open" class="button button-primary">Compare</button>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="compare-dialog" aria-labelledby="compare-title">
+    <div class="dialog-head">
+      <h2 id="compare-title">Side by side</h2>
+      <button type="button" class="button button-quiet" id="compare-close">Close</button>
+    </div>
+    <div class="table-wrap" id="compare-body"></div>
+  </dialog>
+</body>
+</html>
