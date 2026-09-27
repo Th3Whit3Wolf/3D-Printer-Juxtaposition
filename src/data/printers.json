@@ -5,13 +5,18 @@
     "model": "Kobra 3 Combo",
     "price": 449,
     "technology": "FDM",
+    "kinematics": "Bed slinger",
     "enclosed": false,
-    "multi_material": true,
+    "max_materials": 4,
     "build_volume": {
       "x": 250,
       "y": 250,
       "z": 260
     },
+    "hotend_max_c": 300,
+    "bed_max_c": 120,
+    "max_speed_mm_s": 600,
+    "released": 2024,
     "links": [
       {
         "label": "Official site",
@@ -30,13 +35,19 @@
     "model": "A1",
     "price": 399,
     "technology": "FDM",
+    "kinematics": "Bed slinger",
     "enclosed": false,
-    "multi_material": false,
+    "max_materials": 1,
     "build_volume": {
       "x": 256,
       "y": 256,
       "z": 256
     },
+    "weight_kg": 8.3,
+    "hotend_max_c": 300,
+    "bed_max_c": 100,
+    "max_speed_mm_s": 500,
+    "released": 2023,
     "links": [
       {
         "label": "Official site",
@@ -55,13 +66,24 @@
     "model": "A1 mini",
     "price": 249,
     "technology": "FDM",
+    "kinematics": "Bed slinger",
     "enclosed": false,
-    "multi_material": false,
+    "max_materials": 1,
     "build_volume": {
       "x": 180,
       "y": 180,
       "z": 180
     },
+    "footprint": {
+      "w": 347,
+      "d": 315,
+      "h": 365
+    },
+    "weight_kg": 5.5,
+    "hotend_max_c": 300,
+    "bed_max_c": 80,
+    "max_speed_mm_s": 500,
+    "released": 2023,
     "links": [
       {
         "label": "Official site",
@@ -80,13 +102,24 @@
     "model": "P1S",
     "price": 649,
     "technology": "FDM",
+    "kinematics": "CoreXY",
     "enclosed": true,
-    "multi_material": false,
+    "max_materials": 1,
     "build_volume": {
       "x": 256,
       "y": 256,
       "z": 256
     },
+    "footprint": {
+      "w": 389,
+      "d": 389,
+      "h": 458
+    },
+    "weight_kg": 12.95,
+    "hotend_max_c": 300,
+    "bed_max_c": 100,
+    "max_speed_mm_s": 500,
+    "released": 2023,
     "links": [
       {
         "label": "Official site",
@@ -105,13 +138,18 @@
     "model": "Ender-3 V3 SE",
     "price": 199,
     "technology": "FDM",
+    "kinematics": "Bed slinger",
     "enclosed": false,
-    "multi_material": false,
+    "max_materials": 1,
     "build_volume": {
       "x": 220,
       "y": 220,
       "z": 250
     },
+    "hotend_max_c": 260,
+    "bed_max_c": 100,
+    "max_speed_mm_s": 250,
+    "released": 2023,
     "links": [
       {
         "label": "Official site",
@@ -130,13 +168,23 @@
     "model": "K1C",
     "price": 459,
     "technology": "FDM",
+    "kinematics": "CoreXY",
     "enclosed": true,
-    "multi_material": false,
+    "max_materials": 1,
     "build_volume": {
       "x": 220,
       "y": 220,
       "z": 250
     },
+    "footprint": {
+      "w": 355,
+      "d": 355,
+      "h": 480
+    },
+    "hotend_max_c": 300,
+    "bed_max_c": 100,
+    "max_speed_mm_s": 600,
+    "released": 2024,
     "links": [
       {
         "label": "Official site",
@@ -155,13 +203,18 @@
     "model": "Neptune 4 Pro",
     "price": 299,
     "technology": "FDM",
+    "kinematics": "Bed slinger",
     "enclosed": false,
-    "multi_material": false,
+    "max_materials": 1,
     "build_volume": {
       "x": 225,
       "y": 225,
       "z": 265
     },
+    "hotend_max_c": 300,
+    "bed_max_c": 110,
+    "max_speed_mm_s": 500,
+    "released": 2023,
     "links": [
       {
         "label": "Official site",
@@ -181,12 +234,13 @@
     "price": 449,
     "technology": "Resin (MSLA)",
     "enclosed": true,
-    "multi_material": false,
+    "max_materials": 1,
     "build_volume": {
       "x": 218.88,
       "y": 122.88,
       "z": 220
     },
+    "released": 2024,
     "links": [
       {
         "label": "Official site",
@@ -205,13 +259,17 @@
     "model": "Core One",
     "price": 1199,
     "technology": "FDM",
+    "kinematics": "CoreXY",
     "enclosed": true,
-    "multi_material": false,
+    "max_materials": 1,
     "build_volume": {
       "x": 250,
       "y": 220,
       "z": 270
     },
+    "hotend_max_c": 290,
+    "bed_max_c": 120,
+    "released": 2025,
     "links": [
       {
         "label": "Official site",
@@ -226,13 +284,17 @@
     "model": "MK4S",
     "price": 1099,
     "technology": "FDM",
+    "kinematics": "Bed slinger",
     "enclosed": false,
-    "multi_material": false,
+    "max_materials": 1,
     "build_volume": {
       "x": 250,
       "y": 210,
       "z": 220
     },
+    "hotend_max_c": 290,
+    "bed_max_c": 120,
+    "released": 2024,
     "links": [
       {
         "label": "Official site",
@@ -248,6 +310,7 @@
     "price": 549,
     "price_updated": "2026-09-27",
     "technology": "FDM",
+    "kinematics": "CoreXY",
     "enclosed": false,
     "multi_material": true,
     "build_volume": {
@@ -255,6 +318,9 @@
       "y": 350,
       "z": 345
     },
+    "hotend_max_c": 300,
+    "bed_max_c": 100,
+    "max_speed_mm_s": 700,
     "image": "images/sovol-sv08.jpg",
     "links": [
       {
@@ -276,6 +342,7 @@
     "price": 1099,
     "price_updated": "2026-09-27",
     "technology": "FDM",
+    "kinematics": "CoreXY",
     "enclosed": false,
     "multi_material": false,
     "build_volume": {
@@ -283,6 +350,9 @@
       "y": 500,
       "z": 500
     },
+    "hotend_max_c": 300,
+    "bed_max_c": 100,
+    "max_speed_mm_s": 700,
     "image": "images/sovol-sv08-max.jpg",
     "links": [
       {

@@ -2,7 +2,7 @@ name: Printer from issue
 
 on:
   issues:
-    types: [opened, edited]
+    types: [ opened, edited ]
 
 permissions:
   contents: write
@@ -18,53 +18,74 @@ jobs:
     if: github.event.issue.state == 'open' && contains(github.event.issue.labels.*.name, 'new-printer')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+    # Dependencies first: the bot uses sharp to optimize the photo
+    - run: npm ci
 
-      # The issue body is untrusted input, so it's passed in through env,
-      # never pasted into the shell command.
-      - name: Read the issue and update data/printers.json
-        id: parse
-        env:
-          ISSUE_BODY: ${{ github.event.issue.body }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
-        run: node scripts/add-printer-from-issue.mjs
+    # The issue body is untrusted input, so it goes through env,
+    # never pasted into a shell command.
+    - name: Read the issue and update the data
+      id: parse
+      env:
+        ISSUE_BODY: ${{ github.event.issue.body }}
+        ISSUE_NUMBER: ${{ github.event.issue.number }}
+        ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+      run: node scripts/add-printer-from-issue.mjs
 
-      - name: Open or update the pull request
-        id: cpr
-        if: steps.parse.outputs.ok == 'true'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          branch: printer/issue-${{ github.event.issue.number }}
-          base: ${{ github.event.repository.default_branch }}
-          title: ${{ steps.parse.outputs.title }}
-          commit-message: ${{ steps.parse.outputs.title }}
-          body-path: ${{ runner.temp }}/pr-body.md
-          add-paths: |
-            data/printers.json
-            images
-          labels: new-printer
-          delete-branch: true
+    # Make sure the site still builds before proposing the change
+    - name: Build the site
+      id: build
+      if: steps.parse.outputs.ok == 'true'
+      run: |
+        npm run build
+        rm -rf dist
 
-      - name: Link the pull request on the issue
-        if: steps.parse.outputs.ok == 'true' && steps.cpr.outputs.pull-request-operation == 'created'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-            --body "Thanks! I opened $PR_URL for this printer. It shows up on the site once it's merged. Editing this issue updates the pull request."
+    - name: Open or update the pull request
+      id: cpr
+      if: steps.parse.outputs.ok == 'true'
+      uses: peter-evans/create-pull-request@v7
+      with:
+        branch: printer/issue-${{ github.event.issue.number }}
+        base: ${{ github.event.repository.default_branch }}
+        title: ${{ steps.parse.outputs.title }}
+        commit-message: ${{ steps.parse.outputs.title }}
+        body-path: ${{ runner.temp }}/pr-body.md
+        add-paths: |
+          src/data/printers.json
+          src/assets/printers
+        labels: new-printer
+        delete-branch: true
 
-      - name: Explain what needs fixing
-        if: steps.parse.outputs.ok != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/issue-comment.md"
-          exit 1
+    - name: Link the pull request on the issue
+      if: steps.parse.outputs.ok == 'true' && steps.cpr.outputs.pull-request-operation == 'created'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
+        ISSUE_NUMBER: ${{ github.event.issue.number }}
+      run: |
+        gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+          --body "Thanks! I opened $PR_URL for this printer. It shows up on the site once it's merged. Editing this issue updates the pull request."
+
+    - name: Explain what needs fixing
+      if: steps.parse.outputs.ok != 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        ISSUE_NUMBER: ${{ github.event.issue.number }}
+      run: |
+        gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/issue-comment.md"
+        exit 1
+
+    - name: Report a failed build
+      if: failure() && steps.parse.outputs.ok == 'true' && steps.build.outcome == 'failure'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        ISSUE_NUMBER: ${{ github.event.issue.number }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+          --body "The details look fine, but the site didn't build with them ($RUN_URL). A maintainer will take a look."

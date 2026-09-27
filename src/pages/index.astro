@@ -1,0 +1,278 @@
+---
+import "../styles/global.css";
+import { getImage } from "astro:assets";
+import { printers, SPECS, glyph, plate, fmt, brands, brandColor, technologies, maxPrice, maxSide } from "../lib/printers.mjs";
+
+const TITLE = "Every printer, to scale.";
+const NAME = "3D Printer Juxtaposition";
+
+// Only these strings (plus digits) are set in the display face, so only their glyphs ship.
+
+// Photos in src/assets/printers/ are square WebPs (see scripts/lib/image.mjs);
+// the build makes a small thumbnail and a larger one for the comparison.
+const files = import.meta.glob("../assets/printers/*.{jpg,jpeg,png,webp,avif}", { eager: true, import: "default" });
+const local = Object.fromEntries(Object.entries(files).map(([path, meta]) => [path.split("/").pop(), meta]));
+
+async function photos(p) {
+  if (!p.image) return null;
+  const meta = local[p.image.split("/").pop()];
+  if (meta) {
+    const [thumb, hero] = await Promise.all([
+      getImage({ src: meta, width: 112, height: 112, format: "webp", quality: 72 }),
+      getImage({ src: meta, width: 320, height: 320, format: "webp", quality: 72 }),
+    ]);
+    return { thumb: thumb.src, hero: hero.src };
+  }
+  return /^https:\/\//.test(p.image) ? { thumb: p.image, hero: p.image } : null;
+}
+
+const sorted = [...printers].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity) || a.name.localeCompare(b.name));
+const rows = await Promise.all(sorted.map(async (p) => ({ p, img: await photos(p) })));
+
+const repo = process.env.GITHUB_REPOSITORY;
+const suggestUrl = repo ? `https://github.com/${repo}/issues/new?template=add-printer.yml` : null;
+
+const initials = (s) => s.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+const tags = (p) => [p.enclosed && "Enclosed", p.kinematics, p.materials > 1 && `${p.materials} colors`, p.technology !== "FDM" && p.technology].filter(Boolean);
+
+const chip = "inline-flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-full border border-line bg-card px-3 text-[0.8125rem] font-medium whitespace-nowrap text-muted select-none hover:text-ink has-checked:border-ink has-checked:bg-ink has-checked:text-card has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink";
+const colHead = "flex items-center gap-1 text-xs font-medium text-muted hover:text-ink aria-[sort]:text-ink cursor-pointer";
+
+const mark = `<svg viewBox="0 0 32 32" class="size-5" aria-hidden="true"><path d="M16 3l12 7-12 7-12-7z" fill="#ff7a1a"/><path d="M4 10l12 7v13L4 23z" fill="#b34f07"/><path d="M28 10l-12 7v13l12-7z" fill="#d9640d"/></svg>`;
+const favicon = "data:image/svg+xml," + encodeURIComponent(mark.replace('class="size-5" aria-hidden="true"', 'xmlns="http://www.w3.org/2000/svg"'));
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{NAME}: 3D printers compared, to scale</title>
+  <meta name="description" content="Every 3D printer's build volume drawn to the same scale. Compare price, largest printable cube, speed, temperatures and size.">
+  <meta name="theme-color" content="#eef0f3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0e13" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href={favicon}>
+</head>
+<body class="min-h-dvh bg-page font-sans text-[0.9375rem] leading-normal text-ink antialiased">
+  <nav class="mx-auto flex max-w-[88rem] items-center justify-between px-4 pt-5 sm:px-6">
+    <a href="./" class="flex items-center gap-2 font-display text-[0.9375rem]"><Fragment set:html={mark} />{NAME}</a>
+    <div class="flex items-center gap-5 text-sm font-medium">
+      <a href="data/printers.json" class="text-muted hover:text-ink">Data</a>
+      {suggestUrl && <a href={suggestUrl} class="rounded-full bg-ink px-3.5 py-1.5 text-card hover:opacity-85">Suggest a printer</a>}
+    </div>
+  </nav>
+
+  <div class="mx-auto max-w-[88rem] px-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-x-10 xl:grid-cols-[minmax(0,1fr)_26rem]">
+    <header class="@container pt-10 pb-8 sm:pt-16 lg:col-start-1 lg:row-start-1 lg:pb-10">
+      <h1 class="layers font-display text-[clamp(2.25rem,12cqi,7.25rem)] text-nowrap leading-[0.94] tracking-[-0.015em]">Every printer,<br>to scale.</h1>
+      <p class="mt-6 max-w-[36rem] text-[1.0625rem] leading-relaxed text-muted">
+        Build volumes drawn on one plate at the same scale, with the largest single cube each printer can make.
+        Filter, sort, and pick up to four to compare.
+      </p>
+    </header>
+
+    <aside class="mb-8 overflow-hidden rounded-[1.75rem] bg-vp text-vp-ink lg:col-start-2 lg:row-start-1 lg:mt-12 lg:self-start xl:sticky xl:top-5 xl:row-span-3 xl:mb-0" aria-labelledby="plate-title">
+      <div class="flex items-baseline justify-between px-5 pt-5">
+        <h2 id="plate-title" class="text-sm font-semibold">Build volumes, to scale</h2>
+        <p class="text-xs text-vp-muted">50 mm grid</p>
+      </div>
+      <div id="plate" class="mx-auto max-w-md px-3 pt-2 sm:px-6 lg:max-w-none">
+        <Fragment set:html={plate()} />
+      </div>
+      <div id="plate-caption" class="min-h-[4.25rem] border-t border-vp-line px-5 py-3.5 text-sm" aria-live="polite">
+        <p class="text-vp-muted">Point at or open a printer to see it on the plate. Printers you pick to compare stay lit.</p>
+      </div>
+      <ul class="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-vp-line px-5 py-3.5 text-xs text-vp-muted">
+        {brands.map((b) => <li class="flex items-center gap-1.5"><span class="size-2 rounded-full" style={`background:${brandColor[b]}`}></span>{b}</li>)}
+      </ul>
+    </aside>
+
+    <form id="filters" class="sticky top-3 z-20 rounded-2xl border border-line bg-card lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-1" autocomplete="off" onsubmit="return false">
+      <div class="flex flex-wrap items-center gap-2 p-2.5">
+        <label class="relative min-w-0 flex-1 basis-40">
+          <span class="sr-only">Search</span>
+          <svg class="pointer-events-none absolute top-2.5 left-3 size-4 text-muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+          <input type="search" name="q" placeholder="Search brand or model" class="h-9 w-full rounded-xl bg-hover pr-3 pl-9 outline-none placeholder:text-muted focus:ring-2 focus:ring-ink">
+        </label>
+        <div class="order-last -mx-2.5 flex w-[calc(100%+1.25rem)] gap-2 overflow-x-auto px-2.5 [scrollbar-width:none] sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0">
+          <label class={chip}><input type="checkbox" name="f" value="enclosed" class="sr-only">Enclosed</label>
+          <label class={chip}><input type="checkbox" name="f" value="multi" class="sr-only">Multi-color</label>
+          <label class={chip}><input type="checkbox" name="f" value="corexy" class="sr-only">CoreXY</label>
+          <button type="button" id="more" aria-expanded="false" aria-controls="panel" class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-line px-3 text-[0.8125rem] font-medium whitespace-nowrap hover:border-ink aria-expanded:border-ink">
+            More filters <span id="badge" class="hidden min-w-5 rounded-full bg-ink px-1.5 text-center text-[0.6875rem] leading-5 text-card"></span>
+          </button>
+        </div>
+        <label class="inline-flex items-center gap-2 text-[0.8125rem] text-muted sm:ml-auto">
+          <span class="max-sm:sr-only">Sort</span>
+          <select name="sort" class="h-9 w-32 rounded-xl bg-hover px-2 font-medium text-ink outline-none focus:ring-2 focus:ring-ink sm:h-8 sm:w-auto">
+            <option value="price">Price, lowest</option>
+            <option value="-price">Price, highest</option>
+            <option value="ppl">Price per litre, lowest</option>
+            <option value="-volume">Build volume, largest</option>
+            <option value="-side">Largest cube, biggest</option>
+            <option value="-speed">Top speed, fastest</option>
+            <option value="-released">Newest</option>
+            <option value="name">Name</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="panel" hidden class="border-t border-line">
+        <div class="grid gap-x-8 gap-y-5 p-4 sm:grid-cols-2">
+          <label class="grid content-start gap-3">
+            <span class="flex justify-between text-[0.8125rem] font-medium">Price <output id="price-out" class="text-muted">Any</output></span>
+            <input type="range" name="maxPrice" min="0" max={maxPrice} step="50" value={maxPrice} class="accent-(--color-ink)">
+          </label>
+          <label class="grid content-start gap-3">
+            <span class="flex justify-between text-[0.8125rem] font-medium">Largest cube <output id="side-out" class="text-muted">Any</output></span>
+            <input type="range" name="minSide" min="0" max={maxSide} step="10" value="0" class="accent-(--color-ink)">
+          </label>
+          <fieldset>
+            <legend class="mb-2 text-[0.8125rem] font-medium">Technology</legend>
+            <div class="flex flex-wrap gap-1.5">{technologies.map((t) => <label class={chip}><input type="checkbox" name="tech" value={t} class="sr-only">{t}</label>)}</div>
+          </fieldset>
+          <fieldset>
+            <legend class="mb-2 text-[0.8125rem] font-medium">Brand</legend>
+            <div class="flex flex-wrap gap-1.5">
+              {brands.map((b) => (
+                <label class={chip}><input type="checkbox" name="brand" value={b} class="sr-only"><span class="size-2 rounded-full" style={`background:${brandColor[b]}`}></span>{b}</label>
+              ))}
+            </div>
+          </fieldset>
+        </div>
+      </div>
+    </form>
+
+    <main class="pt-4 pb-36 lg:col-span-2 lg:row-start-3 xl:col-span-1 xl:col-start-1">
+      <div class="mb-2 flex items-baseline justify-between px-1">
+        <p id="count" class="text-[0.8125rem] text-muted" aria-live="polite">{printers.length} printers</p>
+        <button type="reset" form="filters" id="clear" hidden class="text-[0.8125rem] font-medium underline underline-offset-4">Clear filters</button>
+      </div>
+
+      <div class="overflow-hidden rounded-3xl border border-line bg-card">
+        <div class="cols hidden border-b border-line px-4 py-3 md:grid" id="heads">
+          <span></span>
+          <button type="button" data-sort="name" class={colHead}>Printer</button>
+          <button type="button" data-sort="price" class={colHead + " justify-end"} aria-sort="ascending">Price</button>
+          <button type="button" data-sort="-volume" class={colHead + " justify-end"}>Build volume</button>
+          <button type="button" data-sort="-side" class={colHead}>Largest cube</button>
+          <button type="button" data-sort="ppl" class={colHead + " justify-end"}>Per litre</button>
+          <span></span>
+        </div>
+
+        <div id="list">
+          {rows.map(({ p, img }) => (
+            <article
+              class="row relative border-b border-line last:border-b-0"
+              style={`--c:${p.color}`}
+              data-id={p.id}
+              data-name={`${p.name} ${p.technology} ${p.kinematics ?? ""}`.toLowerCase()}
+              data-brand={p.brand}
+              data-tech={p.technology}
+              data-motion={p.kinematics ?? ""}
+              data-enclosed={p.enclosed ? "1" : "0"}
+              data-materials={p.materials}
+              data-price={p.price ?? ""}
+              data-ppl={p.pricePerL ? p.pricePerL.toFixed(2) : ""}
+              data-volume={p.volume.toFixed(2)}
+              data-side={p.side}
+              data-speed={p.speed ?? ""}
+              data-released={p.released ?? ""}
+              data-hero={img?.hero ?? ""}
+            >
+              <details>
+                <summary class="cols min-h-21 cursor-pointer py-3.5 pr-14 pl-4 transition-colors hover:bg-hover md:pr-4">
+                  <div class:list={["grid size-13 place-items-center overflow-hidden rounded-xl md:size-14", img ? "bg-white" : "bg-[color-mix(in_srgb,var(--c)_16%,transparent)]"]} data-thumb>
+                    {img
+                      ? <img src={img.thumb} alt="" width="56" height="56" loading="lazy" decoding="async" class="size-full object-contain">
+                      : <span class="font-display text-sm text-(--c)" aria-hidden="true">{initials(p.brand)}</span>}
+                  </div>
+                  <div class="min-w-0">
+                    <p class="flex items-center gap-1.5 truncate text-xs text-muted" data-brand-label><span class="size-2 shrink-0 rounded-full bg-(--c)"></span>{p.brand}</p>
+                    <h3 class="truncate text-base font-semibold tracking-tight">{p.model}</h3>
+                    <p class="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted">
+                      <span class="md:hidden">{fmt.mm(p.side)} mm ³</span>
+                      {tags(p).map((t) => <span>{t}</span>)}
+                    </p>
+                  </div>
+                  <p class="text-right font-display text-[1.0625rem]">{fmt.price(p.price)}</p>
+                  <p class="hidden text-right whitespace-nowrap md:block"><span data-dims>{fmt.dims(p.bv)}</span><br><small>{fmt.L(p.volume)}</small></p>
+                  <div class="hidden items-center gap-2.5 md:flex">
+                    <Fragment set:html={glyph(p, "w-11 shrink-0")} />
+                    <p class="whitespace-nowrap"><span class="font-semibold">{fmt.mm(p.side)} mm</span><br><small>{fmt.L(p.cube)}</small></p>
+                  </div>
+                  <p class="hidden text-right md:block">{fmt.ppl(p.pricePerL)}</p>
+                  <span class="hidden md:block"></span>
+                </summary>
+
+                <div class="px-4 pt-2 pb-5 md:pl-[5.5rem]">
+                  <dl class="specs grid grid-cols-2 gap-x-6 gap-y-3 rounded-2xl bg-hover p-4 sm:grid-cols-3 lg:grid-cols-4">
+                    {SPECS.map((s) => {
+                      const text = s.text(p);
+                      const v = s.v?.(p);
+                      return (
+                        <div data-k={s.k} data-v={v == null ? "" : Math.round(v * 100) / 100} hidden={s.row === false || !text}>
+                          <dt>{s.label}</dt>
+                          <dd set:html={text || "—"} />
+                        </div>
+                      );
+                    })}
+                  </dl>
+                  {p.links.length > 0 && (
+                    <div class="mt-3 flex flex-wrap gap-2" data-links>
+                      {p.links.map((l) => (
+                        <a href={l.url} target="_blank" rel="noopener noreferrer nofollow" class="inline-flex h-9 items-center rounded-full bg-ink px-4 text-[0.8125rem] font-medium text-card hover:opacity-85">{l.label}</a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </details>
+
+              <label class="absolute top-0 right-2 grid h-21 w-10 cursor-pointer place-items-center md:right-4 md:w-11" title="Add to comparison">
+                <input type="checkbox" value={p.id} data-compare class="peer sr-only">
+                <span class="sr-only">Compare {p.name}</span>
+                <span aria-hidden="true" class="grid size-6 place-items-center rounded-lg border-[1.5px] border-line bg-card text-transparent transition-colors peer-checked:border-(--c) peer-checked:bg-(--c) peer-checked:text-white peer-disabled:opacity-35 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">
+                  <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m3.5 8.5 3 3 6-7"/></svg>
+                </span>
+              </label>
+            </article>
+          ))}
+        </div>
+
+        <div id="empty" hidden class="px-4 py-16 text-center">
+          <p class="font-medium">No printers match these filters.</p>
+          <button type="reset" form="filters" class="mt-3 text-[0.8125rem] font-medium underline underline-offset-4">Clear filters</button>
+        </div>
+      </div>
+
+      <p class="mt-5 max-w-3xl px-1 text-xs leading-relaxed text-muted">
+        Largest cube is the shortest of the three build dimensions. Space efficiency is build volume as a share of the machine's outer box.
+        Filaments are estimated from maximum temperatures and enclosure. Prices change, so check the store before buying.
+      </p>
+    </main>
+  </div>
+
+  <div id="tray" hidden class="fixed inset-x-3 bottom-3 z-30 mx-auto max-w-2xl rounded-[1.25rem] bg-ink p-2 text-card">
+    <div class="flex items-center gap-2">
+      <ul id="tray-list" class="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none]"></ul>
+      <button type="button" id="tray-open" class="h-10 shrink-0 rounded-[0.875rem] bg-card px-4 text-sm font-semibold text-ink disabled:bg-transparent disabled:font-medium disabled:text-card/60">Compare</button>
+    </div>
+  </div>
+
+  <dialog id="sheet" aria-labelledby="sheet-title" class="m-auto max-h-[calc(100dvh-1.5rem)] w-[min(72rem,calc(100vw-1.5rem))] overflow-auto rounded-[1.75rem] bg-card p-0 text-ink backdrop:bg-black/55">
+    <div class="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-line bg-card px-5 py-3">
+      <h2 id="sheet-title" class="mr-auto font-display text-lg">Comparing printers</h2>
+      <label class={chip}><input type="checkbox" id="diff" class="sr-only">Only differences</label>
+      <button type="button" id="share" class="h-8 rounded-full border border-line px-3 text-[0.8125rem] font-medium hover:border-ink">Copy link</button>
+      <button type="button" id="sheet-close" autofocus class="h-8 rounded-full bg-ink px-3 text-[0.8125rem] font-medium text-card">Close</button>
+    </div>
+    <div class="grid items-center gap-4 bg-vp px-5 py-4 text-vp-ink sm:grid-cols-[minmax(0,22rem)_1fr]">
+      <div id="sheet-plate" class="mx-auto w-full max-w-[20rem]"></div>
+      <ul id="sheet-key" class="grid gap-2 text-sm"></ul>
+    </div>
+    <div id="sheet-body" class="overflow-x-auto"></div>
+  </dialog>
+
+  <script type="application/json" id="best" set:html={JSON.stringify(Object.fromEntries(SPECS.filter((s) => s.best).map((s) => [s.k, s.best])))} />
+  <script src="../scripts/app.js"></script>
+</body>
+</html>

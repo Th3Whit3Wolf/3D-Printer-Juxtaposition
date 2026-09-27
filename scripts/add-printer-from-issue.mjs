@@ -1,21 +1,24 @@
 #!/usr/bin/env node
 // Reads an "Add or update a 3D printer" issue form (ISSUE_BODY) and writes the
-// printer into data/printers.json. Run by .github/workflows/printer-from-issue.yml.
+// printer into src/data/printers.json. Run by .github/workflows/printer-from-issue.yml.
 //
 // Outputs (GITHUB_OUTPUT): ok=true|false, title=<PR title>
 // Files ($RUNNER_TEMP):    pr-body.md on success, issue-comment.md on failure
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { cleanUrl, labelFor, isAmazonShortHost } from "../src/lib/links.mjs";
+import { normalizeImage, describe } from "./lib/image.mjs";
 
-const DATA_FILE = "data/printers.json";
-const IMAGE_DIR = "images";
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const IMAGE_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/avif": "avif" };
+const DATA_FILE = "src/data/printers.json";
+const IMAGE_DIR = "src/assets/printers";
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024; // before optimization
 const TECHNOLOGIES = ["FDM", "Resin (MSLA)", "SLS", "Other"];
+const KINEMATICS = ["CoreXY", "Bed slinger", "Delta", "IDEX", "Other"];
+const TMP = process.env.RUNNER_TEMP || "/tmp";
 
 // Must match the `label:` values in .github/ISSUE_TEMPLATE/add-printer.yml
-const FIELDS = {
+const F = {
   brand: "Brand",
   model: "Model",
   price: "Price (USD)",
@@ -23,12 +26,18 @@ const FIELDS = {
   y: "Build volume Y (mm)",
   z: "Build volume Z (mm)",
   technology: "Technology",
-  features: "Features",
-  image: "Product image",
   links: "Where to buy",
+  kinematics: "Motion system",
+  features: "Features",
+  materials: "Colors or materials in one print",
+  hotend: "Hotend max temperature (°C)",
+  bed: "Bed max temperature (°C)",
+  speed: "Claimed top speed (mm/s)",
+  footprint: "Machine size W × D × H (mm)",
+  weight: "Weight (kg)",
+  released: "Release year",
+  image: "Product image",
 };
-
-const TMP = process.env.RUNNER_TEMP || "/tmp";
 
 // ---------- parsing ----------
 
@@ -39,7 +48,7 @@ export function parseIssueForm(markdown) {
     const nl = section.indexOf("\n");
     const label = (nl === -1 ? section : section.slice(0, nl)).trim();
     let value = nl === -1 ? "" : section.slice(nl + 1).trim();
-    if (value === "_No response_") value = "";
+    if (value === "_No response_" || value === "None") value = "";
     out[label] = value;
   }
   return out;
@@ -48,38 +57,38 @@ export function parseIssueForm(markdown) {
 const clean = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
 
 export function parseNumber(s) {
-  const t = String(s ?? "").replace(/[$,\s]|usd|mm/gi, "");
-  if (!/^\d+(\.\d+)?$/.test(t)) return null;
-  return Number(t);
+  const t = String(s ?? "").replace(/[$,\s]|usd|mm\/s|mm|kg|°c|c$/gi, "");
+  return /^\d+(\.\d+)?$/.test(t) ? Number(t) : null;
+}
+
+export function parseDims(s) {
+  const parts = String(s ?? "").match(/\d+(\.\d+)?/g);
+  return parts?.length === 3 ? parts.map(Number) : null;
 }
 
 export function slugify(s) {
-  return s
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-function isHttpUrl(s) {
-  try {
-    const u = new URL(s);
-    return u.protocol === "https:" || u.protocol === "http:";
-  } catch {
-    return false;
+// Follows amzn.to / a.co redirects so the stored link is the clean /dp/ASIN form
+async function expandShortLink(url) {
+  let current = url;
+  for (let i = 0; i < 5; i++) {
+    const host = new URL(current).hostname;
+    if (!isAmazonShortHost(host)) return current;
+    try {
+      const res = await fetch(current, { redirect: "manual", headers: { "User-Agent": "Mozilla/5.0 printer-compare-bot" } });
+      const next = res.headers.get("location");
+      if (!next) return current;
+      current = new URL(next, current).href;
+    } catch {
+      return current;
+    }
   }
+  return current;
 }
 
-function labelFromUrl(url) {
-  const host = new URL(url).hostname.replace(/^www\./, "");
-  if (/(^|\.)amazon\./.test(host) || host === "amzn.to") return "Amazon";
-  if (/(^|\.)aliexpress\./.test(host)) return "AliExpress";
-  if (/(^|\.)ebay\./.test(host)) return "eBay";
-  return host;
-}
-
-export function parseLinks(text) {
+export async function parseLinks(text) {
   const links = [];
   const bad = [];
   for (const raw of String(text ?? "").split("\n")) {
@@ -88,55 +97,52 @@ export function parseLinks(text) {
     let label = "";
     let url = "";
     let m;
-    if ((m = line.match(/^\[([^\]]+)\]\((\S+)\)$/))) [, label, url] = m; // [Label](url)
-    else if ((m = line.match(/^(.*?)\s*\|\s*(\S+)$/))) [, label, url] = m; // Label | url
+    if ((m = line.match(/^\[([^\]]+)\]\((\S+)\)$/))) [, label, url] = m;
+    else if ((m = line.match(/^(.*?)\s*\|\s*(\S+)$/))) [, label, url] = m;
     else url = line;
     url = url.replace(/^<|>$/g, "");
-    if (!isHttpUrl(url)) {
+    let cleaned = cleanUrl(url);
+    if (!cleaned) {
       bad.push(line);
       continue;
     }
-    label = clean(label).slice(0, 40) || labelFromUrl(url);
-    if (!links.some((l) => l.url === url)) links.push({ label, url });
+    cleaned = cleanUrl(await expandShortLink(cleaned));
+    label = clean(label).slice(0, 40) || labelFor(cleaned);
+    if (!links.some((l) => l.url === cleaned)) links.push({ label, url: cleaned });
   }
   return { links, bad };
 }
 
 export function extractImageUrl(text) {
   const t = String(text ?? "");
-  const m =
-    t.match(/!\[[^\]]*\]\((https?:\/\/[^)\s]+)/) || // ![alt](url)  (drag-and-drop uploads)
-    t.match(/<img[^>]+src="(https?:\/\/[^"]+)"/i) || // <img src="url">
-    t.match(/(https?:\/\/\S+)/); // bare url
+  const m = t.match(/!\[[^\]]*\]\((https?:\/\/[^)\s]+)/) || t.match(/<img[^>]+src="(https?:\/\/[^"]+)"/i) || t.match(/(https?:\/\/\S+)/);
   return m ? m[1] : null;
 }
 
-function checked(featuresText, label) {
-  const re = new RegExp(`^- \\[x\\]\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "im");
-  return re.test(featuresText || "");
-}
-
-// ---------- image download ----------
+// ---------- image download + normalization ----------
 
 async function downloadImage(url, id) {
   const res = await fetch(url, { redirect: "follow", headers: { "User-Agent": "printer-compare-bot" } });
   if (!res.ok) throw new Error(`the server answered HTTP ${res.status}`);
   const type = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-  const ext = IMAGE_TYPES[type];
-  if (!ext) throw new Error(`it isn't a JPEG, PNG, WebP, GIF or AVIF image (got ${type || "no content type"})`);
-  const declared = Number(res.headers.get("content-length") || 0);
-  if (declared > MAX_IMAGE_BYTES) throw new Error("it's larger than 5 MB");
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length > MAX_IMAGE_BYTES) throw new Error("it's larger than 5 MB");
+  if (!type.startsWith("image/") && type !== "application/octet-stream") throw new Error(`the link isn't an image (got ${type || "no content type"})`);
+  if (Number(res.headers.get("content-length") || 0) > MAX_IMAGE_BYTES) throw new Error("it's larger than 20 MB");
+  const input = Buffer.from(await res.arrayBuffer());
+  if (input.length > MAX_IMAGE_BYTES) throw new Error("it's larger than 20 MB");
+
+  let result;
+  try {
+    result = await normalizeImage(input);
+  } catch {
+    throw new Error("it couldn't be read as an image");
+  }
 
   await fs.mkdir(IMAGE_DIR, { recursive: true });
-  // Remove an older image for this printer saved with a different extension
   for (const f of await fs.readdir(IMAGE_DIR)) {
-    if (f.startsWith(`${id}.`) && f !== `${id}.${ext}`) await fs.rm(path.join(IMAGE_DIR, f));
+    if (f.startsWith(`${id}.`) && f !== `${id}.webp`) await fs.rm(path.join(IMAGE_DIR, f));
   }
-  const file = `${IMAGE_DIR}/${id}.${ext}`;
-  await fs.writeFile(file, buf);
-  return file;
+  await fs.writeFile(path.join(IMAGE_DIR, `${id}.webp`), result.buffer);
+  return { file: `${id}.webp`, before: result.before, after: result.after };
 }
 
 // ---------- outputs ----------
@@ -148,13 +154,7 @@ async function setOutput(name, value) {
 }
 
 async function fail(errors) {
-  const body = [
-    "I couldn't turn this issue into a pull request yet:",
-    "",
-    ...errors.map((e) => `- ${e}`),
-    "",
-    "Edit the issue to fix these and I'll try again automatically.",
-  ].join("\n");
+  const body = ["I couldn't turn this issue into a pull request yet:", "", ...errors.map((e) => `- ${e}`), "", "Edit the issue to fix these and I'll try again automatically."].join("\n");
   await fs.writeFile(path.join(TMP, "issue-comment.md"), body);
   await setOutput("ok", "false");
   console.log(body);
@@ -171,28 +171,53 @@ async function main() {
   const errors = [];
   const notes = [];
 
-  const brand = clean(form[FIELDS.brand]).slice(0, 60);
-  const model = clean(form[FIELDS.model]).slice(0, 80);
+  const brand = clean(form[F.brand]).slice(0, 60);
+  const model = clean(form[F.model]).slice(0, 80);
   if (!brand) errors.push("**Brand** is empty.");
   if (!model) errors.push("**Model** is empty.");
 
-  const price = parseNumber(form[FIELDS.price]);
-  if (price == null || price <= 0 || price > 100000) errors.push("**Price (USD)** should be a number, like `699` or `1299.99`.");
+  const price = parseNumber(form[F.price]);
+  if (price == null || price <= 0 || price > 100000) errors.push("**Price (USD)** should be a number, like `649` or `1299.99`.");
 
-  const dims = {};
+  const bv = {};
   for (const axis of ["x", "y", "z"]) {
-    const n = parseNumber(form[FIELDS[axis]]);
-    if (n == null || n <= 0 || n > 5000) errors.push(`**${FIELDS[axis]}** should be a number of millimetres, like \`256\`.`);
-    dims[axis] = n;
+    const v = parseNumber(form[F[axis]]);
+    if (v == null || v <= 0 || v > 5000) errors.push(`**${F[axis]}** should be a number of millimetres, like \`256\`.`);
+    bv[axis] = v;
   }
 
-  let technology = clean(form[FIELDS.technology]);
+  // Optional numbers: blank is fine, nonsense is not
+  const optional = (key, min, max, hint) => {
+    const text = clean(form[F[key]]);
+    if (!text) return undefined;
+    const v = parseNumber(text);
+    if (v == null || v < min || v > max) {
+      errors.push(`**${F[key]}** should be a number ${hint}, or left blank.`);
+      return undefined;
+    }
+    return v;
+  };
+  const materials = optional("materials", 1, 64, "like `4`");
+  const hotend = optional("hotend", 100, 600, "of degrees, like `300`");
+  const bed = optional("bed", 30, 200, "of degrees, like `100`");
+  const speed = optional("speed", 10, 5000, "like `500`");
+  const weight = optional("weight", 0.5, 500, "of kilograms, like `12.5`");
+  const released = optional("released", 1990, new Date().getFullYear() + 1, "like `2024`");
+
+  let footprint;
+  if (clean(form[F.footprint])) {
+    const d = parseDims(form[F.footprint]);
+    if (!d || d.some((v) => v <= 0 || v > 5000)) errors.push(`**${F.footprint}** should be three numbers, like \`389 × 389 × 458\`.`);
+    else footprint = { w: d[0], d: d[1], h: d[2] };
+  }
+
+  let technology = clean(form[F.technology]);
   if (!TECHNOLOGIES.includes(technology)) technology = "Other";
+  const kinematicsRaw = clean(form[F.kinematics]);
+  const kinematics = KINEMATICS.includes(kinematicsRaw) ? kinematicsRaw : undefined;
+  const enclosed = /^- \[x\]\s*Enclosed build chamber/im.test(form[F.features] || "");
 
-  const enclosed = checked(form[FIELDS.features], "Enclosed build chamber");
-  const multi_material = checked(form[FIELDS.features], "Multi-material or multi-color printing");
-
-  const { links, bad } = parseLinks(form[FIELDS.links]);
+  const { links, bad } = await parseLinks(form[F.links]);
   for (const line of bad) errors.push(`**Where to buy**: \`${line.slice(0, 120)}\` isn't a web address starting with https://`);
   if (!links.length && !bad.length) errors.push("**Where to buy** needs at least one link.");
 
@@ -205,33 +230,46 @@ async function main() {
   const index = data.findIndex((p) => p.id === id);
   const existing = index >= 0 ? data[index] : null;
 
-  let image = existing?.image ?? null;
-  const imageUrl = extractImageUrl(form[FIELDS.image]);
+  let image = existing?.image;
+  const imageUrl = extractImageUrl(form[F.image]);
   if (imageUrl) {
     try {
-      image = await downloadImage(imageUrl, id);
+      const saved = await downloadImage(imageUrl, id);
+      image = saved.file;
+      notes.push(`Image optimized: ${describe(saved.before)} → ${describe(saved.after)}, trimmed and centered on a square canvas.`);
     } catch (err) {
-      notes.push(`Couldn't copy the image into the repo because ${err.message}. The page links to it directly instead; swap in a local copy if it stops loading.`);
+      notes.push(`Couldn't copy the image into the repo because ${err.message}. The page links to it directly instead, unoptimized. Replace it with a local file if you can.`);
       image = imageUrl;
     }
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const printer = {
-    id,
-    brand,
-    model,
-    price,
-    price_updated: today,
-    technology,
-    enclosed,
-    multi_material,
-    build_volume: { x: dims.x, y: dims.y, z: dims.z },
-    ...(image ? { image } : {}),
-    links,
-    added: existing?.added ?? today,
-    ...(Number(issue) ? { source_issue: Number(issue) } : {}),
-  };
+  // Blank optional fields keep what an existing entry already had
+  const keep = (value, key) => (value !== undefined ? value : existing?.[key]);
+  const printer = Object.fromEntries(
+    Object.entries({
+      id,
+      brand,
+      model,
+      price,
+      price_updated: today,
+      technology,
+      kinematics: keep(kinematics, "kinematics"),
+      enclosed,
+      max_materials: keep(materials, "max_materials") ?? 1,
+      build_volume: bv,
+      footprint: keep(footprint, "footprint"),
+      weight_kg: keep(weight, "weight_kg"),
+      hotend_max_c: keep(hotend, "hotend_max_c"),
+      bed_max_c: keep(bed, "bed_max_c"),
+      max_speed_mm_s: keep(speed, "max_speed_mm_s"),
+      released: keep(released, "released"),
+      image,
+      links,
+      added: existing?.added ?? today,
+      source_issue: Number(issue) || undefined,
+    }).filter(([, v]) => v !== undefined && v !== null),
+  );
 
   if (existing) data[index] = printer;
   else data.push(printer);
@@ -240,8 +278,18 @@ async function main() {
 
   const verb = existing ? "Update" : "Add";
   const title = `${verb} ${brand} ${model}`;
-  const side = Math.min(dims.x, dims.y, dims.z);
-  const litres = (n) => `${(n / 1e6).toFixed(1)} L`;
+  const side = Math.min(bv.x, bv.y, bv.z);
+  const L = (mm3) => `${(mm3 / 1e6).toFixed(1)} L`;
+  const optionalRows = [
+    ["Motion system", printer.kinematics],
+    ["Colors / materials", printer.max_materials > 1 ? `Up to ${printer.max_materials}` : "Single"],
+    ["Hotend max", printer.hotend_max_c && `${printer.hotend_max_c} °C`],
+    ["Bed max", printer.bed_max_c && `${printer.bed_max_c} °C`],
+    ["Top speed (claimed)", printer.max_speed_mm_s && `${printer.max_speed_mm_s} mm/s`],
+    ["Machine size", printer.footprint && `${printer.footprint.w} × ${printer.footprint.d} × ${printer.footprint.h} mm`],
+    ["Weight", printer.weight_kg && `${printer.weight_kg} kg`],
+    ["Released", printer.released],
+  ].filter(([, v]) => v);
 
   const body = [
     `${existing ? "Updates" : "Adds"} **${brand} ${model}** from #${issue}${author ? ` (submitted by @${author})` : ""}.`,
@@ -249,16 +297,16 @@ async function main() {
     "| | |",
     "|---|---|",
     `| Price | $${price} |`,
-    `| Build volume | ${dims.x} × ${dims.y} × ${dims.z} mm (${litres(dims.x * dims.y * dims.z)}) |`,
-    `| Largest cube | ${side} mm per side (${litres(side ** 3)}) |`,
+    `| Build volume | ${bv.x} × ${bv.y} × ${bv.z} mm (${L(bv.x * bv.y * bv.z)}) |`,
+    `| Largest cube | ${side} mm per side (${L(side ** 3)}) |`,
     `| Technology | ${mdCell(technology)} |`,
     `| Enclosed | ${enclosed ? "Yes" : "No"} |`,
-    `| Multi-material | ${multi_material ? "Yes" : "No"} |`,
+    ...optionalRows.map(([k, v]) => `| ${k} | ${mdCell(v)} |`),
     `| Links | ${links.map((l) => `[${mdCell(l.label).replace(/[[\]]/g, "")}](${l.url})`).join(", ")} |`,
     "",
-    ...(imageUrl ? [`<img src="${imageUrl.replace(/"/g, "%22")}" alt="" width="280">`, ""] : []),
+    ...(imageUrl ? [`Original image: <img src="${imageUrl.replace(/"/g, "%22")}" alt="" width="200">`, ""] : []),
     ...(notes.length ? ["**Notes**", ...notes.map((n) => `- ${n}`), ""] : []),
-    "Check the details against the manufacturer's page before merging.",
+    "The site builds successfully with this change. Check the numbers against the manufacturer's page before merging.",
     "",
     `Closes #${issue}`,
   ].join("\n");
@@ -269,7 +317,6 @@ async function main() {
   console.log(body);
 }
 
-// Run only when executed directly (lets the helpers be imported by tests)
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(async (err) => {
     console.error(err);
