@@ -7,10 +7,20 @@
     "technology": "FDM",
     "enclosed": false,
     "multi_material": true,
-    "build_volume": { "x": 250, "y": 250, "z": 260 },
+    "build_volume": {
+      "x": 250,
+      "y": 250,
+      "z": 260
+    },
     "links": [
-      { "label": "Official site", "url": "https://www.anycubic.com" },
-      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Anycubic+Kobra+3+Combo" }
+      {
+        "label": "Official site",
+        "url": "https://www.anycubic.com"
+      },
+      {
+        "label": "Amazon",
+        "url": "https://www.amazon.com/s?k=Anycubic+Kobra+3+Combo"
+      }
     ],
     "added": "2026-09-01"
   },
@@ -22,10 +32,20 @@
     "technology": "FDM",
     "enclosed": false,
     "multi_material": false,
-    "build_volume": { "x": 256, "y": 256, "z": 256 },
+    "build_volume": {
+      "x": 256,
+      "y": 256,
+      "z": 256
+    },
     "links": [
-      { "label": "Official site", "url": "https://bambulab.com" },
-      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Bambu+Lab+A1" }
+      {
+        "label": "Official site",
+        "url": "https://bambulab.com"
+      },
+      {
+        "label": "Amazon",
+        "url": "https://www.amazon.com/s?k=Bambu+Lab+A1"
+      }
     ],
     "added": "2026-09-01"
   },
@@ -37,10 +57,20 @@
     "technology": "FDM",
     "enclosed": false,
     "multi_material": false,
-    "build_volume": { "x": 180, "y": 180, "z": 180 },
+    "build_volume": {
+      "x": 180,
+      "y": 180,
+      "z": 180
+    },
     "links": [
-      { "label": "Official site", "url": "https://bambulab.com" },
-      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Bambu+Lab+A1+mini" }
+      {
+        "label": "Official site",
+        "url": "https://bambulab.com"
+      },
+      {
+        "label": "Amazon",
+        "url": "https://www.amazon.com/s?k=Bambu+Lab+A1+mini"
+      }
     ],
     "added": "2026-09-01"
   },
@@ -52,10 +82,20 @@
     "technology": "FDM",
     "enclosed": true,
     "multi_material": false,
-    "build_volume": { "x": 256, "y": 256, "z": 256 },
+    "build_volume": {
+      "x": 256,
+      "y": 256,
+      "z": 256
+    },
     "links": [
-      { "label": "Official site", "url": "https://bambulab.com" },
-      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Bambu+Lab+P1S" }
+      {
+        "label": "Official site",
+        "url": "https://bambulab.com"
+      },
+      {
+        "label": "Amazon",
+        "url": "https://www.amazon.com/s?k=Bambu+Lab+P1S"
+      }
     ],
     "added": "2026-09-01"
   },
@@ -67,10 +107,20 @@
     "technology": "FDM",
     "enclosed": false,
     "multi_material": false,
-    "build_volume": { "x": 220, "y": 220, "z": 250 },
+    "build_volume": {
+      "x": 220,
+      "y": 220,
+      "z": 250
+    },
     "links": [
-      { "label": "Official site", "url": "https://www.creality.com" },
-      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Creality+Ender-3+V3+SE" }
+      {
+        "label": "Official site",
+        "url": "https://www.creality.com"
+      },
+      {
+        "label": "Amazon",
+        "url": "https://www.amazon.com/s?k=Creality+Ender-3+V3+SE"
+      }
     ],
     "added": "2026-09-01"
   },
@@ -82,10 +132,20 @@
     "technology": "FDM",
     "enclosed": true,
     "multi_material": false,
-    "build_volume": { "x": 220, "y": 220, "z": 250 },
+    "build_volume": {
+      "x": 220,
+      "y": 220,
+      "z": 250
+    },
     "links": [
-      { "label": "Official site", "url": "https://www.creality.com" },
-      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Creality+K1C" }
+      {
+        "label": "Official site",
+        "url": "https://www.creality.com"
+      },
+      {
+        "label": "Amazon",
+        "url": "https://www.amazon.com/s?k=Creality+K1C"
+      }
     ],
     "added": "2026-09-01"
   },
@@ -97,10 +157,20 @@
     "technology": "FDM",
     "enclosed": false,
     "multi_material": false,
-    "build_volume": { "x": 225, "y": 225, "z": 265 },
+    "build_volume": {
+      "x": 225,
+      "y": 225,
+      "z": 265
+    },
     "links": [
-      { "label": "Official site", "url": "https://www.elegoo.com" },
-      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Elegoo+Neptune+4+Pro" }
+      {
+        "label": "Official site",
+        "url": "https://www.elegoo.com"
+      },
+      {
+        "label": "Amazon",
+        "url": "https://www.amazon.com/s?k=Elegoo+Neptune+4+Pro"
+      }
     ],
     "added": "2026-09-01"
   },
@@ -112,10 +182,20 @@
     "technology": "Resin (MSLA)",
     "enclosed": true,
     "multi_material": false,
-    "build_volume": { "x": 218.88, "y": 122.88, "z": 220 },
+    "build_volume": {
+      "x": 218.88,
+      "y": 122.88,
+      "z": 220
+    },
     "links": [
-      { "label": "Official site", "url": "https://www.elegoo.com" },
-      { "label": "Amazon", "url": "https://www.amazon.com/s?k=Elegoo+Saturn+4+Ultra" }
+      {
+        "label": "Official site",
+        "url": "https://www.elegoo.com"
+      },
+      {
+        "label": "Amazon",
+        "url": "https://www.amazon.com/s?k=Elegoo+Saturn+4+Ultra"
+      }
     ],
     "added": "2026-09-01"
   },
@@ -127,9 +207,16 @@
     "technology": "FDM",
     "enclosed": true,
     "multi_material": false,
-    "build_volume": { "x": 250, "y": 220, "z": 270 },
+    "build_volume": {
+      "x": 250,
+      "y": 220,
+      "z": 270
+    },
     "links": [
-      { "label": "Official site", "url": "https://www.prusa3d.com" }
+      {
+        "label": "Official site",
+        "url": "https://www.prusa3d.com"
+      }
     ],
     "added": "2026-09-01"
   },
@@ -141,10 +228,45 @@
     "technology": "FDM",
     "enclosed": false,
     "multi_material": false,
-    "build_volume": { "x": 250, "y": 210, "z": 220 },
+    "build_volume": {
+      "x": 250,
+      "y": 210,
+      "z": 220
+    },
     "links": [
-      { "label": "Official site", "url": "https://www.prusa3d.com" }
+      {
+        "label": "Official site",
+        "url": "https://www.prusa3d.com"
+      }
     ],
     "added": "2026-09-01"
+  },
+  {
+    "id": "sovol-sv08",
+    "brand": "Sovol",
+    "model": "SV08",
+    "price": 549,
+    "price_updated": "2026-09-27",
+    "technology": "FDM",
+    "enclosed": false,
+    "multi_material": true,
+    "build_volume": {
+      "x": 350,
+      "y": 350,
+      "z": 345
+    },
+    "image": "images/sovol-sv08.jpg",
+    "links": [
+      {
+        "label": "Official Store",
+        "url": "https://www.sovol3d.com/products/sovol-sv08-3d-printer"
+      },
+      {
+        "label": "Amazon",
+        "url": "https://amazon.com/dp/B0D5B1DM4N"
+      }
+    ],
+    "added": "2026-09-27",
+    "source_issue": 3
   }
 ]
