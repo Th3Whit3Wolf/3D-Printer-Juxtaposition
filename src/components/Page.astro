@@ -1,0 +1,232 @@
+---
+// The whole page. Two modes:
+//   <Page />       printer data baked into the HTML at build time (the site's home page)
+//   <Page live />  data fetched from data/printers.json in the browser, with skeletons meanwhile
+import "../styles/global.css";
+import { printers } from "../lib/printers.mjs";
+import { withPhotos } from "../lib/photos.mjs";
+import { SPECS } from "../lib/format.mjs";
+import { u } from "../lib/units.mjs";
+import { glyphScale, plateLayout } from "../lib/geometry.mjs";
+import { rowHtml, chipHtml, legendHtml, facets, byPrice } from "../lib/render.mjs";
+
+interface Props {
+  live?: boolean;
+  /** Path from this page to the site root ("" for the home page, "../" one level down) */
+  root?: string;
+}
+const { live = false, root = "" } = Astro.props;
+
+const NAME = "3D Printer Juxtaposition";
+
+// Baked-in mode renders the data now; live mode leaves slots for the browser to fill
+const baked = !live && (await withPhotos(printers)).sort(byPrice);
+const f = baked && facets(baked);
+const scale = baked && glyphScale(baked.map((p) => p.bv));
+// The plate's shape at build time. Live mode reserves it too (the last known
+// shape), so the card doesn't resize when the data arrives.
+const { W: plateW, H: plateH } = plateLayout(printers.map((p) => p.bv));
+
+// Skeleton rows: varied widths so the placeholder reads as a list, not a grid of bars
+const SKELETON = [["w-16", "w-32", "w-24"], ["w-20", "w-24", "w-20"], ["w-14", "w-36", "w-28"], ["w-20", "w-28", "w-16"], ["w-16", "w-32", "w-24"], ["w-24", "w-24", "w-20"]];
+
+const repo = process.env.GITHUB_REPOSITORY;
+const suggestUrl = repo ? `https://github.com/${repo}/issues/new?template=add-printer.yml` : null;
+
+const mark = `<svg viewBox="0 0 32 32" class="size-5" aria-hidden="true"><path d="M16 3l12 7-12 7-12-7z" fill="#ff7a1a"/><path d="M4 10l12 7v13L4 23z" fill="#b34f07"/><path d="M28 10l-12 7v13l12-7z" fill="#d9640d"/></svg>`;
+const favicon = "data:image/svg+xml," + encodeURIComponent(mark.replace('class="size-5" aria-hidden="true"', 'xmlns="http://www.w3.org/2000/svg"'));
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{NAME}: 3D printers compared, to scale</title>
+  <meta name="description" content="Every 3D printer's build volume drawn to the same scale. Compare price, largest printable cube, speed, temperatures and size.">
+  <meta name="theme-color" content="#eef0f3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0e13" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href={favicon}>
+  {live && (
+    // Start downloading the data while the HTML is still arriving, not after the script runs.
+    // crossorigin makes the preload match fetch()'s default mode, so the response is reused.
+    <link rel="preload" href={`${root}data/printers.json`} as="fetch" crossorigin>
+  )}
+  <script is:inline>
+    // Choose units before anything paints: saved choice, else US units for US-locale browsers
+    try {
+      document.documentElement.dataset.units =
+        localStorage.getItem("units") || (/-(US|LR|MM)$/i.test(navigator.language) ? "us" : "metric");
+    } catch {}
+  </script>
+</head>
+<body data-src={live ? `${root}data/printers.json` : undefined} data-js={live ? "external" : undefined} class="min-h-dvh bg-page font-sans text-body leading-normal text-ink antialiased">
+  <nav class="mx-auto flex max-w-page items-center justify-between px-4 pt-5 sm:px-6">
+    <a href={root || "./"} class="flex items-center gap-2 type-display text-body"><Fragment set:html={mark} />{NAME}</a>
+    <div class="flex items-center gap-4 text-sm font-medium sm:gap-5">
+      <fieldset id="units" class="flex rounded-full border border-line bg-card p-0.5 text-xs">
+        <legend class="sr-only">Units</legend>
+        {[["metric", "Metric"], ["us", "US"]].map(([v, label]) => (
+          <label class="cursor-pointer">
+            <input type="radio" name="units" value={v} class="peer sr-only">
+            <span class="peer-ring block rounded-full px-2.5 py-1 text-muted transition-colors peer-checked:bg-ink peer-checked:text-card">{label}</span>
+          </label>
+        ))}
+      </fieldset>
+      <a href={`${root}data/printers.json`} class="text-muted hover:text-ink max-sm:hidden">Data</a>
+      {suggestUrl && <a href={suggestUrl} class="btn-ink px-3.5 py-1.5">Suggest a printer</a>}
+    </div>
+  </nav>
+
+  <div class="mx-auto max-w-page px-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-x-10 xl:grid-cols-[minmax(0,1fr)_26rem]">
+    <header class="@container pt-10 pb-8 sm:pt-16 lg:col-start-1 lg:row-start-1 lg:pb-10">
+      <h1 class="layers type-display text-[clamp(2.25rem,12cqi,7.25rem)] leading-[0.94] tracking-[-0.015em]">Every printer,<br>to scale.</h1>
+      <p class="mt-6 max-w-xl text-lead leading-relaxed text-muted">
+        Build volumes drawn on one plate at the same scale, with the largest single cube each printer can make.
+        Filter, sort, and pick up to four to compare.
+      </p>
+    </header>
+
+    <aside class="mb-8 overflow-hidden rounded-panel bg-vp text-vp-ink lg:col-start-2 lg:row-start-1 lg:mt-12 lg:self-start xl:sticky xl:top-5 xl:row-span-3 xl:mb-0" aria-labelledby="plate-title">
+      <div class="flex items-baseline justify-between px-5 pt-5">
+        <h2 id="plate-title" class="text-sm font-semibold">Build volumes, to scale</h2>
+        <p class="text-xs text-vp-muted"><Fragment set:html={u("len", 50)} /> grid</p>
+      </div>
+      <div class="mx-auto max-w-md px-3 pt-2 sm:px-6 lg:max-w-none">
+        <div id="plate" style={`aspect-ratio:${plateW}/${plateH}`}>
+          {live && (
+            <svg viewBox={`0 0 ${plateW} ${plateH}`} class="skel-plate block h-full w-full" aria-hidden="true"><path d={`M${plateW / 2} ${plateH - 6} ${plateW * 0.07} ${plateH - 6 - plateW * 0.25} ${plateW / 2} ${plateH - 6 - plateW * 0.5} ${plateW * 0.93} ${plateH - 6 - plateW * 0.25}Z`} /></svg>
+          )}
+          <noscript><p class="grid h-full place-items-center px-6 text-center text-sm text-vp-muted">The build plate needs JavaScript. The list below works without it.</p></noscript>
+        </div>
+      </div>
+      <div id="plate-caption" class="min-h-17 border-t border-vp-line px-5 py-3.5 text-sm" aria-live="polite">
+        <p class="text-vp-muted">Point at or open a printer to see it on the plate. Printers you pick to compare stay lit.</p>
+      </div>
+      <ul id="legend" class="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-vp-line px-5 py-3.5 text-xs text-vp-muted">
+        {baked ? <Fragment set:html={legendHtml(f.brands)} /> : ["w-16", "w-20", "w-14", "w-16"].map((w) => <li class:list={["skel skel-on-vp h-3 my-0.5", w]}></li>)}
+      </ul>
+    </aside>
+
+    <form id="filters" class="sticky top-3 z-20 rounded-2xl border border-line bg-card lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-1" autocomplete="off" onsubmit="return false">
+      <div class="flex flex-wrap items-center gap-2 p-2.5">
+        <label class="relative min-w-0 flex-1 basis-40">
+          <span class="sr-only">Search</span>
+          <svg class="pointer-events-none absolute top-2.5 left-3 size-4 text-muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+          <input type="search" name="q" placeholder="Search brand or model" class="h-9 w-full rounded-xl bg-hover pr-3 pl-9 outline-none placeholder:text-muted focus:ring-2 focus:ring-ink">
+        </label>
+        <div class="order-last -mx-2.5 flex w-[calc(100%+1.25rem)] gap-2 overflow-x-auto px-2.5 no-scrollbar sm:order-0 sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0">
+          <label class="chip"><input type="checkbox" name="f" value="enclosed" class="sr-only">Enclosed</label>
+          <label class="chip"><input type="checkbox" name="f" value="multi" class="sr-only">Multi-color</label>
+          <label class="chip"><input type="checkbox" name="f" value="corexy" class="sr-only">CoreXY</label>
+          <button type="button" id="more" aria-expanded="false" aria-controls="panel" class="btn aria-expanded:border-ink">
+            More filters <span id="badge" class="hidden min-w-5 rounded-full bg-ink px-1.5 text-center text-2xs leading-5 text-card"></span>
+          </button>
+        </div>
+        <label class="inline-flex items-center gap-2 text-label text-muted sm:ml-auto">
+          <span class="max-sm:sr-only">Sort</span>
+          <select name="sort" class="h-9 w-32 rounded-xl bg-hover px-2 font-medium text-ink outline-none focus:ring-2 focus:ring-ink sm:h-8 sm:w-auto">
+            <option value="price">Price, lowest</option>
+            <option value="-price">Price, highest</option>
+            <option value="ppl">Price per volume, lowest</option>
+            <option value="-volume">Build volume, largest</option>
+            <option value="-side">Largest cube, biggest</option>
+            <option value="-speed">Top speed, fastest</option>
+            <option value="-released">Newest</option>
+            <option value="name">Name</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="panel" hidden class="border-t border-line">
+        <div class="grid gap-x-8 gap-y-5 p-4 sm:grid-cols-2">
+          <label class="grid content-start gap-3">
+            <span class="flex justify-between text-label font-medium">Price <output id="price-out" class="text-muted">Any</output></span>
+            <input type="range" name="maxPrice" min="0" max={f ? f.maxPrice : 0} step="50" value={f ? f.maxPrice : 0} class="accent-ink">
+          </label>
+          <label class="grid content-start gap-3">
+            <span class="flex justify-between text-label font-medium">Largest cube <output id="side-out" class="text-muted">Any</output></span>
+            <input type="range" name="minSide" min="0" max={f ? f.maxSide : 0} step="10" value="0" class="accent-ink">
+          </label>
+          <fieldset>
+            <legend class="mb-2 text-label font-medium">Technology</legend>
+            <div id="tech-options" class="flex flex-wrap gap-1.5">{baked && <Fragment set:html={f.technologies.map((t) => chipHtml("tech", t)).join("")} />}</div>
+          </fieldset>
+          <fieldset>
+            <legend class="mb-2 text-label font-medium">Brand</legend>
+            <div id="brand-options" class="flex flex-wrap gap-1.5">{baked && <Fragment set:html={f.brands.map(([b, color]) => chipHtml("brand", b, color)).join("")} />}</div>
+          </fieldset>
+        </div>
+      </div>
+    </form>
+
+    <main class="pt-4 pb-36 lg:col-span-2 lg:row-start-3 xl:col-span-1 xl:col-start-1">
+      <div class="mb-2 flex items-baseline justify-between px-1">
+        <p id="count" class="text-label text-muted" aria-live="polite">{baked ? `${baked.length} printers` : "Loading printers…"}</p>
+        <button type="reset" form="filters" id="clear" hidden class="text-label font-medium underline underline-offset-4">Clear filters</button>
+      </div>
+
+      <div class="overflow-hidden rounded-3xl border border-line bg-card">
+        <div class="cols hidden border-b border-line px-4 py-3 md:grid" id="heads">
+          <span></span>
+          <button type="button" data-sort="name" class="col-head">Printer</button>
+          <button type="button" data-sort="price" class="col-head justify-end" aria-sort="ascending">Price</button>
+          <button type="button" data-sort="-volume" class="col-head justify-end">Build volume</button>
+          <button type="button" data-sort="-side" class="col-head">Largest cube</button>
+          <button type="button" data-sort="ppl" class="col-head justify-end" set:html={u("text", ["Per litre", "Per ft³"])} />
+          <span></span>
+        </div>
+
+        <div id="list" aria-busy={live ? "true" : undefined}>
+          {baked
+            ? <Fragment set:html={baked.map((p) => rowHtml(p, scale)).join("")} />
+            : SKELETON.map(([a, b, c]) => (
+                <div class="cols min-h-21 border-b border-line py-3.5 pr-14 pl-4 last:border-b-0 md:pr-4" aria-hidden="true">
+                  <div class="skel size-13 rounded-xl md:size-14"></div>
+                  <div class="grid gap-2"><div class:list={["skel h-2.5", a]}></div><div class:list={["skel h-4", b]}></div><div class:list={["skel h-2.5", c]}></div></div>
+                  <div class="skel ml-auto h-5 w-12"></div>
+                  <div class="hidden justify-items-end gap-2 md:grid"><div class="skel h-4 w-32"></div><div class="skel h-2.5 w-10"></div></div>
+                  <div class="hidden items-center gap-2.5 md:flex"><div class="skel size-9 rounded-lg"></div><div class="grid gap-2"><div class="skel h-4 w-16"></div><div class="skel h-2.5 w-10"></div></div></div>
+                  <div class="skel ml-auto hidden h-4 w-12 md:block"></div>
+                  <span class="hidden md:block"></span>
+                </div>
+              ))}
+        </div>
+
+        <div id="empty" hidden class="px-4 py-16 text-center">
+          <p class="font-medium">No printers match these filters.</p>
+          <button type="reset" form="filters" class="mt-3 text-label font-medium underline underline-offset-4">Clear filters</button>
+        </div>
+      </div>
+
+      <p class="mt-5 max-w-3xl px-1 text-xs leading-relaxed text-muted">
+        Largest cube is the shortest of the three build dimensions. Space efficiency is build volume as a share of the machine's outer box.
+        Filaments are estimated from maximum temperatures and enclosure. Prices change, so check the store before buying.
+      </p>
+    </main>
+  </div>
+
+  <div id="tray" hidden class="fixed inset-x-3 bottom-3 z-30 mx-auto max-w-2xl rounded-[1.25rem] bg-ink p-2 text-card">
+    <div class="flex items-center gap-2">
+      <ul id="tray-list" class="flex min-w-0 flex-1 gap-1.5 overflow-x-auto no-scrollbar"></ul>
+      <button type="button" id="tray-open" class="h-10 shrink-0 rounded-[0.875rem] bg-card px-4 text-sm font-semibold text-ink disabled:bg-transparent disabled:font-medium disabled:text-card/60">Compare</button>
+    </div>
+  </div>
+
+  <dialog id="sheet" aria-labelledby="sheet-title" class="m-auto max-h-[calc(100dvh-1.5rem)] w-[min(72rem,calc(100vw-1.5rem))] overflow-auto rounded-panel bg-card p-0 text-ink backdrop:bg-black/55">
+    <div class="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-line bg-card px-5 py-3">
+      <h2 id="sheet-title" class="mr-auto type-display text-lg">Comparing printers</h2>
+      <label class="chip"><input type="checkbox" id="diff" class="sr-only">Only differences</label>
+      <button type="button" id="share" class="btn">Copy link</button>
+      <button type="button" id="sheet-close" autofocus class="btn-ink h-8 px-3 text-label">Close</button>
+    </div>
+    <div class="grid items-center gap-4 bg-vp px-5 py-4 text-vp-ink sm:grid-cols-[minmax(0,22rem)_1fr]">
+      <div id="sheet-plate" class="mx-auto w-full max-w-[20rem]"></div>
+      <ul id="sheet-key" class="grid gap-2 text-sm"></ul>
+    </div>
+    <div id="sheet-body" class="overflow-x-auto"></div>
+  </dialog>
+
+  <script type="application/json" id="specs" set:html={JSON.stringify(SPECS.map(({ k, label, best }) => ({ k, label, best })))} />
+  <slot />
+</body>
+</html>
