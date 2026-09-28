@@ -22,19 +22,19 @@ const F = {
   brand: "Brand",
   model: "Model",
   price: "Price (USD)",
-  x: "Build volume X (mm)",
-  y: "Build volume Y (mm)",
-  z: "Build volume Z (mm)",
+  x: "Build volume X",
+  y: "Build volume Y",
+  z: "Build volume Z",
   technology: "Technology",
   links: "Where to buy",
   kinematics: "Motion system",
   features: "Features",
   materials: "Colors or materials in one print",
-  hotend: "Hotend max temperature (°C)",
-  bed: "Bed max temperature (°C)",
-  speed: "Claimed top speed (mm/s)",
-  footprint: "Machine size W × D × H (mm)",
-  weight: "Weight (kg)",
+  hotend: "Hotend max temperature",
+  bed: "Bed max temperature",
+  speed: "Claimed top speed",
+  footprint: "Machine size W × D × H",
+  weight: "Weight",
   released: "Release year",
   image: "Product image",
 };
@@ -61,9 +61,30 @@ export function parseNumber(s) {
   return /^\d+(\.\d+)?$/.test(t) ? Number(t) : null;
 }
 
+// Measurements may be typed in metric or US units; everything is stored metric.
+//   length: "256", "256 mm", "10.1 in", "10.1\""     -> mm
+//   temp:   "300", "300 °C", "572 F", "572°F"      -> °C
+//   speed:  "500", "500 mm/s", "19.7 in/s"         -> mm/s
+//   mass:   "12.5", "12.5 kg", "27.5 lb"           -> kg
+const round = (v, d) => Math.round(v * 10 ** d) / 10 ** d;
+const INCH = /(\d)\s*("|”|″|in\b|inch|inches)/i;
+export function parseMeasure(text, kind) {
+  const t = String(text ?? "").trim();
+  const v = parseNumber(t.replace(/[a-z°"”″/]+/gi, " "));
+  if (v == null) return null;
+  if (kind === "length") return INCH.test(t) ? round(v * 25.4, 1) : v;
+  if (kind === "speed") return /in\s*\/\s*s|ips/i.test(t) ? round(v * 25.4, 0) : v;
+  if (kind === "temp") return /(\d|°)\s*f\b/i.test(t) ? round(((v - 32) * 5) / 9, 0) : v;
+  if (kind === "mass") return /lbs?\b|pounds?/i.test(t) ? round(v / 2.20462, 2) : v;
+  return v;
+}
+
 export function parseDims(s) {
-  const parts = String(s ?? "").match(/\d+(\.\d+)?/g);
-  return parts?.length === 3 ? parts.map(Number) : null;
+  const t = String(s ?? "");
+  const parts = t.match(/\d+(\.\d+)?/g);
+  if (parts?.length !== 3) return null;
+  const inches = INCH.test(t) || /\bin(ches)?\b/i.test(t);
+  return parts.map((p) => (inches ? round(Number(p) * 25.4, 1) : Number(p)));
 }
 
 export function slugify(s) {
@@ -181,16 +202,16 @@ async function main() {
 
   const bv = {};
   for (const axis of ["x", "y", "z"]) {
-    const v = parseNumber(form[F[axis]]);
-    if (v == null || v <= 0 || v > 5000) errors.push(`**${F[axis]}** should be a number of millimetres, like \`256\`.`);
+    const v = parseMeasure(form[F[axis]], "length");
+    if (v == null || v <= 0 || v > 5000) errors.push(`**${F[axis]}** should be a size like \`256\` (mm) or \`10.1 in\`.`);
     bv[axis] = v;
   }
 
   // Optional numbers: blank is fine, nonsense is not
-  const optional = (key, min, max, hint) => {
+  const optional = (key, min, max, hint, kind) => {
     const text = clean(form[F[key]]);
     if (!text) return undefined;
-    const v = parseNumber(text);
+    const v = kind ? parseMeasure(text, kind) : parseNumber(text);
     if (v == null || v < min || v > max) {
       errors.push(`**${F[key]}** should be a number ${hint}, or left blank.`);
       return undefined;
@@ -198,16 +219,16 @@ async function main() {
     return v;
   };
   const materials = optional("materials", 1, 64, "like `4`");
-  const hotend = optional("hotend", 100, 600, "of degrees, like `300`");
-  const bed = optional("bed", 30, 200, "of degrees, like `100`");
-  const speed = optional("speed", 10, 5000, "like `500`");
-  const weight = optional("weight", 0.5, 500, "of kilograms, like `12.5`");
+  const hotend = optional("hotend", 100, 600, "like `300` (°C) or `572 F`", "temp");
+  const bed = optional("bed", 30, 200, "like `100` (°C) or `212 F`", "temp");
+  const speed = optional("speed", 10, 5000, "like `500` (mm/s) or `19.7 in/s`", "speed");
+  const weight = optional("weight", 0.5, 500, "like `12.5` (kg) or `27.5 lb`", "mass");
   const released = optional("released", 1990, new Date().getFullYear() + 1, "like `2024`");
 
   let footprint;
   if (clean(form[F.footprint])) {
     const d = parseDims(form[F.footprint]);
-    if (!d || d.some((v) => v <= 0 || v > 5000)) errors.push(`**${F.footprint}** should be three numbers, like \`389 × 389 × 458\`.`);
+    if (!d || d.some((v) => v <= 0 || v > 5000)) errors.push(`**${F.footprint}** should be three numbers, like \`389 × 389 × 458\` (mm) or \`15.3 × 15.3 × 18 in\`.`);
     else footprint = { w: d[0], d: d[1], h: d[2] };
   }
 
